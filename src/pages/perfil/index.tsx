@@ -55,5 +55,5 @@ const ProfileScreen = () => {
     </View>
   );
 };
-
+teste
 export default ProfileScreen;
