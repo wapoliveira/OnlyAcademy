@@ -20,6 +20,10 @@
         "backgroundColor": "#ffffff"
       }
     },
+    "permissions": [
+      "CAMERA",
+      "CAMERA_ROLL"
+    ],
     "web": {
       "favicon": "./assets/favicon.png"
     }
