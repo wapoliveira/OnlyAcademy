@@ -1,62 +1,25 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
-
 import React from 'react';
-import type {PropsWithChildren} from 'react';
-import {
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  useColorScheme,
-  View,
-} from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
+import { StripeProvider } from '@stripe/stripe-react-native';
+import ProfileScreen from './src/pages/ProfileScreen';
+import PlanSelectionScreen from './src/pages/PlanSelectionScreen';
+import PaymentScreen from './src/pages/PaymentScreen';
 
-import {
-  Colors,
-} from 'react-native/Libraries/NewAppScreen';
-import ProfileScreen from './src/pages/perfil';
+const Stack = createStackNavigator();
 
-
-
-
-
-function App(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
-  };
-
+const App = () => {
   return (
-    <SafeAreaView style={backgroundStyle}>
-      <ProfileScreen />
-    </SafeAreaView>
+    <StripeProvider publishableKey="pk_test_51PPF5fB6fHgKpaVPONYhb9TNPjIAw6ShyQfNMLmYIfw8RK1jvvlttteaDrCrFJKPWMaux0Ej9UlscEUFhsIuZqPl00REaP4cit">
+      <NavigationContainer>
+        <Stack.Navigator initialRouteName="Profile">
+          <Stack.Screen name="Profile" component={ProfileScreen} />
+          <Stack.Screen name="PlanSelection" component={PlanSelectionScreen} />
+          <Stack.Screen name="PaymentScreen" component={PaymentScreen} />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </StripeProvider>
   );
-}
-
-const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-  },
-  highlight: {
-    fontWeight: '700',
-  },
-});
+};
 
 export default App;
