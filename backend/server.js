@@ -18,12 +18,21 @@ app.post('/create-payment-method', async (req, res) => {
         exp_year: req.body.exp_year,
         cvc: req.body.cvc,
       },
+      billing_details: {
+        email: 'asd@gmail.com'
+      },
     });
     res.send(paymentMethod);
   } catch (error) {
     res.status(500).send({ error: error.message });
   }
 });
+
+
+app.get('/health', async (req, res) => {
+  console.info({ ok: true });
+  res.send({ ok: true })
+})
 
 // Rota para atualizar um PaymentMethod
 app.post('/update-payment-method/:paymentMethodId', async (req, res) => {

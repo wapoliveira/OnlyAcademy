@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import axios from 'axios';
 
-const PaymentScreen = ({ route }) => {
+const PaymentScreen = ({ route }: any) => {
   const { plan } = route.params;
   const [email, setEmail] = useState('');
   const [cardNumber, setCardNumber] = useState('');
@@ -12,14 +12,21 @@ const PaymentScreen = ({ route }) => {
 
   const handlePayment = async () => {
     try {
-      const response = await axios.post('http://localhost:3000/create-payment-method', {
+
+      const estaRodando = await axios.post('http://192.168.99.153:3000/health')
+      if (!estaRodando.data.ok) {
+        console.error('Erro de conexão');
+        return;
+      }
+
+      const response = await axios.post('http://192.168.99.153:3000/create-payment-method', {
         plan,
         email,
         cardNumber,
         expMonth,
         expYear,
         cvc,
-      });
+      })
       console.log('Subscription created:', response.data);
       Alert.alert('Success', 'Your subscription is confirmed!');
     } catch (error) {
