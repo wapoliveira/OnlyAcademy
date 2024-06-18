@@ -1,0 +1,16 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "concurrently \"npm run start\" \"cd ../expo && npm start\""
+  },
+  "dependencies": {
+    "express": "^4.17.1",
+    "stripe": "^8.152.0",
+    "body-parser": "^1.19.0",
+    "cors": "^2.8.5",
+    "concurrently": "^6.2.1"
+  }
+}
