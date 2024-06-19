@@ -1,8 +1,14 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import axios from 'axios';
+import { SupabaseClient } from '@supabase/supabase-js';
 
-const PaymentScreen = ({ route }: any) => {
+interface PaymentScreenProps {
+  route: any;
+  supabase: SupabaseClient;
+}
+
+const PaymentScreen: React.FC<PaymentScreenProps> = ({ route, supabase }) => {
   const { plan } = route.params;
   const [email, setEmail] = useState('');
   const [cardNumber, setCardNumber] = useState('');
@@ -12,13 +18,6 @@ const PaymentScreen = ({ route }: any) => {
 
   const handlePayment = async () => {
     try {
-
-      const estaRodando = await axios.post('http://192.168.99.153:3000/health')
-      if (!estaRodando.data.ok) {
-        console.error('Erro de conexão');
-        return;
-      }
-
       const response = await axios.post('http://192.168.99.153:3000/create-payment-method', {
         plan,
         email,
@@ -26,7 +25,24 @@ const PaymentScreen = ({ route }: any) => {
         expMonth,
         expYear,
         cvc,
-      })
+      });
+
+      // Após criar o método de pagamento, salve os dados no Supabase
+      const { data, error } = await supabase.from('payments').insert([
+        {
+          plan,
+          email,
+          cardNumber,
+          expMonth,
+          expYear,
+          cvc,
+        },
+      ]);
+
+      if (error) {
+        throw error;
+      }
+
       console.log('Subscription created:', response.data);
       Alert.alert('Success', 'Your subscription is confirmed!');
     } catch (error) {

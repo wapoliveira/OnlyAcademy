@@ -3,13 +3,19 @@ import { View, Text, Image, TouchableOpacity, Platform, StyleSheet } from 'react
 import * as ImagePicker from 'expo-image-picker';
 import axios from 'axios';
 
-const ProfileScreen = ({ navigation }) => {
+const ProfileScreen = ({ navigation, supabase }) => {
   const [selectedOption, setSelectedOption] = useState('Tudo');
+  const [profileImage, setProfileImage] = useState(null); // Estado para a imagem do perfil
+  const [userInfo, setUserInfo] = useState({
+    name: '@Wellington', // Nome do usuário
+    bio: 'Breve descrição sobre você', // Bio do usuário
+    profile_picture: require('../../../assets/perfil.png'), // Imagem padrão do perfil
+  });
 
   useEffect(() => {
     (async () => {
       if (Platform.OS !== 'web') {
-        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
           alert('Desculpe, precisamos das permissões da câmera para fazer isso funcionar!');
         }
@@ -26,59 +32,85 @@ const ProfileScreen = ({ navigation }) => {
     });
 
     if (!result.cancelled) {
-      console.log(result);
-      // Aqui você pode lidar com a imagem capturada, por exemplo, exibir em uma imagem ou enviá-la para o servidor.
+      // Salvando a imagem do perfil no estado
+      setProfileImage(result.uri);
+      uploadProfileImage(result.uri); // Chama a função para fazer upload da imagem
     }
   };
 
-  // Método para criar um PaymentMethod
-  const createPaymentMethod = async () => {
+  const openImagePicker = async () => {
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 1,
+    });
+
+    if (!result.cancelled) {
+      // Salvando a imagem do perfil no estado
+      setProfileImage(result.uri);
+      uploadProfileImage(result.uri); // Chama a função para fazer upload da imagem
+    }
+  };
+
+  const uploadProfileImage = async (imageUri) => {
     try {
-      const response = await axios.post('http://localhost:3000/create-payment-method', {
-        number: '4242424242424242',
-        exp_month: 8,
-        exp_year: 2026,
-        cvc: '314',
-      });
-      console.log('CREATE PAYMENT METHOD RESPONSE:', response.data);
-    } catch (error) {
-      console.error('Error creating payment method:', error);
-    }
-  };
+      // Implemente a lógica para fazer upload da imagem para o Supabase
+      const { data, error } = await supabase.storage
+        .from('profiles')
+        .upload(`profile/${Date.now()}`, imageUri, {
+          contentType: 'image/jpeg', // Tipo de conteúdo da imagem
+        });
 
-  // Método para atualizar um PaymentMethod
-  const updatePaymentMethod = async (paymentMethodId) => {
-    try {
-      const response = await axios.post(`http://localhost:3000/update-payment-method/${paymentMethodId}`, {
-        order_id: '6735',
-      });
-      console.log('UPDATE PAYMENT METHOD RESPONSE:', response.data);
-    } catch (error) {
-      console.error('Error updating payment method:', error);
-    }
-  };
+      if (error) {
+        throw error;
+      }
 
-  const handleOptionChange = (option) => {
-    setSelectedOption(option);
-    // Implemente a lógica para exibir o conteúdo de acordo com a opção selecionada
+      // Atualizar o perfil no banco de dados com o URL da imagem
+      const updateProfile = await supabase.from('profiles').update({
+        profile_picture: data.Key,
+      }).eq('id', 'user-id'); // Substitua 'user-id' pelo ID do usuário
+
+      if (updateProfile.error) {
+        throw updateProfile.error;
+      }
+
+      // Atualizar as informações do usuário no estado local
+      setUserInfo(prevState => ({
+        ...prevState,
+        profile_picture: { uri: data.Key }, // Atualiza a imagem de perfil no estado
+      }));
+
+      // Se tudo ocorrer bem, mostrar mensagem de sucesso
+      alert('Imagem de perfil atualizada com sucesso!');
+    } catch (error) {
+      console.error('Erro ao fazer upload da imagem de perfil:', error.message);
+      alert('Erro ao fazer upload da imagem de perfil. Por favor, tente novamente mais tarde.');
+    }
   };
 
   return (
     <View>
       <View style={styles.container}>
+        {/* Renderização da imagem de perfil */}
         <Image
-          source={require('../../../assets/perfil.png')}
+          source={profileImage ? { uri: profileImage } : userInfo.profile_picture}
           style={styles.image}
         />
         <Text style={styles.text}>Seguidores: 100</Text>
         <Text style={styles.text}>Seguindo: 50</Text>
-        <Text style={styles.text}>@SeuNome</Text>
-        <Text style={styles.text}>Breve descrição sobre você</Text>
+        <Text style={styles.text}>{userInfo.name}</Text>
+        <Text style={styles.text}>{userInfo.bio}</Text>
         <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('PlanSelection')}>
           <Text style={styles.buttonText}>Escolher Plano</Text>
         </TouchableOpacity>
+        {/* Botão para abrir a câmera */}
         <TouchableOpacity style={styles.button} onPress={openCamera}>
-          <Text style={styles.buttonText}>Câmera</Text>
+          <Text style={styles.buttonText}>Camera</Text>
+        </TouchableOpacity>
+        {/* Botão para abrir a galeria de imagens */}
+        <TouchableOpacity style={styles.button} onPress={openImagePicker}>
+          <Text style={styles.buttonText}>Alterar Imagem de Perfil</Text>
         </TouchableOpacity>
       </View>
 
