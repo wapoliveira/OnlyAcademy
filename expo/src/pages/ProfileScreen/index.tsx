@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Image, TouchableOpacity, Platform, StyleSheet } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import axios from 'axios';
+import { supabase } from '../../../supabase'; // Verifique se o caminho está correto
 
-const ProfileScreen = ({ navigation, supabase }) => {
-  const [selectedOption, setSelectedOption] = useState('Tudo');
-  const [profileImage, setProfileImage] = useState(null); // Estado para a imagem do perfil
+const ProfileScreen = ({ navigation }) => {
+  const [profileImage, setProfileImage] = useState(null);
   const [userInfo, setUserInfo] = useState({
-    name: '@Wellington', // Nome do usuário
-    bio: 'Breve descrição sobre você', // Bio do usuário
-    profile_picture: require('../../../assets/perfil.png'), // Imagem padrão do perfil
+    name: '@Wellington',
+    bio: 'Breve descrição sobre você',
+    profile_picture: require('../../../assets/perfil.png'),
   });
 
   useEffect(() => {
@@ -32,9 +31,8 @@ const ProfileScreen = ({ navigation, supabase }) => {
     });
 
     if (!result.cancelled) {
-      // Salvando a imagem do perfil no estado
       setProfileImage(result.uri);
-      uploadProfileImage(result.uri); // Chama a função para fazer upload da imagem
+      uploadProfileImage(result.uri);
     }
   };
 
@@ -47,41 +45,52 @@ const ProfileScreen = ({ navigation, supabase }) => {
     });
 
     if (!result.cancelled) {
-      // Salvando a imagem do perfil no estado
       setProfileImage(result.uri);
-      uploadProfileImage(result.uri); // Chama a função para fazer upload da imagem
+      uploadProfileImage(result);
     }
   };
 
   const uploadProfileImage = async (imageUri) => {
     try {
-      // Implemente a lógica para fazer upload da imagem para o Supabase
+      // const response = await fetch(imageUri);
+      // const blob = await response.blob();
+const {data: user, error: e}: any = await supabase.auth.getUser();
+      console.log('Usuário autenticado:', user); // Log para verificar se o usuário está autenticado
+      if (!user) {
+        throw new Error('Usuário não autenticado');
+      }
+
+      const imageName = `${user.user.id}/avatar-${Date.now()}`
+
       const { data, error } = await supabase.storage
-        .from('profiles')
-        .upload(`profile/${Date.now()}`, imageUri, {
-          contentType: 'image/jpeg', // Tipo de conteúdo da imagem
+        .from('images')
+        .upload(imageName, imageUri, {
+          contentType: 'image/jpeg',
         });
 
       if (error) {
+        console.error('upload', error)
         throw error;
       }
 
-      // Atualizar o perfil no banco de dados com o URL da imagem
-      const updateProfile = await supabase.from('profiles').update({
-        profile_picture: data.Key,
-      }).eq('id', 'user-id'); // Substitua 'user-id' pelo ID do usuário
+      
 
-      if (updateProfile.error) {
-        throw updateProfile.error;
+      const {data: profileData, error: updateProfileError} = await supabase.from('profiles').update({
+        profile_picture: imageName,
+      }).eq('id', user.user.id);
+
+      console.log({profileData})
+
+      if (updateProfileError) {
+        console.error('updateProfile', updateProfileError)
+        throw updateProfileError;
       }
 
-      // Atualizar as informações do usuário no estado local
       setUserInfo(prevState => ({
         ...prevState,
-        profile_picture: { uri: data.Key }, // Atualiza a imagem de perfil no estado
+        profile_picture: { uri: user.user.id },
       }));
 
-      // Se tudo ocorrer bem, mostrar mensagem de sucesso
       alert('Imagem de perfil atualizada com sucesso!');
     } catch (error) {
       console.error('Erro ao fazer upload da imagem de perfil:', error.message);
@@ -90,43 +99,24 @@ const ProfileScreen = ({ navigation, supabase }) => {
   };
 
   return (
-    <View>
-      <View style={styles.container}>
-        {/* Renderização da imagem de perfil */}
-        <Image
-          source={profileImage ? { uri: profileImage } : userInfo.profile_picture}
-          style={styles.image}
-        />
-        <Text style={styles.text}>Seguidores: 100</Text>
-        <Text style={styles.text}>Seguindo: 50</Text>
-        <Text style={styles.text}>{userInfo.name}</Text>
-        <Text style={styles.text}>{userInfo.bio}</Text>
-        <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('PlanSelection')}>
-          <Text style={styles.buttonText}>Escolher Plano</Text>
-        </TouchableOpacity>
-        {/* Botão para abrir a câmera */}
-        <TouchableOpacity style={styles.button} onPress={openCamera}>
-          <Text style={styles.buttonText}>Camera</Text>
-        </TouchableOpacity>
-        {/* Botão para abrir a galeria de imagens */}
-        <TouchableOpacity style={styles.button} onPress={openImagePicker}>
-          <Text style={styles.buttonText}>Alterar Imagem de Perfil</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 20 }}>
-        <TouchableOpacity onPress={() => handleOptionChange('Tudo')} style={{ marginRight: 10 }}>
-          <Text style={{ color: selectedOption === 'Tudo' ? 'blue' : 'black' }}>Tudo</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => handleOptionChange('Fotos')} style={{ marginRight: 10 }}>
-          <Text style={{ color: selectedOption === 'Fotos' ? 'blue' : 'black' }}>Fotos</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => handleOptionChange('Vídeos')}>
-          <Text style={{ color: selectedOption === 'Vídeos' ? 'blue' : 'black' }}>Vídeos</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Restante do seu código */}
+    <View style={styles.container}>
+      <Image
+        source={profileImage ? { uri: profileImage } : userInfo.profile_picture}
+        style={styles.image}
+      />
+      <Text style={styles.text}>Seguidores: 100</Text>
+      <Text style={styles.text}>Seguindo: 50</Text>
+      <Text style={styles.text}>{userInfo.name}</Text>
+      <Text style={styles.text}>{userInfo.bio}</Text>
+      <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('PlanSelection')}>
+        <Text style={styles.buttonText}>Escolher Plano</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.button} onPress={openCamera}>
+        <Text style={styles.buttonText}>Camera</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.button} onPress={openImagePicker}>
+        <Text style={styles.buttonText}>Alterar Imagem de Perfil</Text>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -153,9 +143,6 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: 'white',
-  },
-  contentBox: {
-    // Estilos para a caixa de conteúdo
   },
 });
 
