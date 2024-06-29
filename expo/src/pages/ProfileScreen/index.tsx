@@ -1,15 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Image, TouchableOpacity, Platform, StyleSheet } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import axios from 'axios';
+import { supabase } from '../../../supabase'; // Verifique se o caminho está correto
 
 const ProfileScreen = ({ navigation }) => {
-  const [selectedOption, setSelectedOption] = useState('Tudo');
+  const [profileImage, setProfileImage] = useState(null);
+  const [userInfo, setUserInfo] = useState({
+    name: '@Wellington',
+    bio: 'Breve descrição sobre você',
+    profile_picture: require('../../../assets/perfil.png'),
+  });
 
   useEffect(() => {
     (async () => {
       if (Platform.OS !== 'web') {
-        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
           alert('Desculpe, precisamos das permissões da câmera para fazer isso funcionar!');
         }
@@ -26,75 +31,92 @@ const ProfileScreen = ({ navigation }) => {
     });
 
     if (!result.cancelled) {
-      console.log(result);
-      // Aqui você pode lidar com a imagem capturada, por exemplo, exibir em uma imagem ou enviá-la para o servidor.
+      setProfileImage(result.uri);
+      uploadProfileImage(result.uri);
     }
   };
 
-  // Método para criar um PaymentMethod
-  const createPaymentMethod = async () => {
+  const openImagePicker = async () => {
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 1,
+    });
+
+    if (!result.cancelled) {
+      setProfileImage(result.uri);
+      uploadProfileImage(result);
+    }
+  };
+
+  const uploadProfileImage = async (imageUri) => {
     try {
-      const response = await axios.post('http://localhost:3000/create-payment-method', {
-        number: '4242424242424242',
-        exp_month: 8,
-        exp_year: 2026,
-        cvc: '314',
-      });
-      console.log('CREATE PAYMENT METHOD RESPONSE:', response.data);
-    } catch (error) {
-      console.error('Error creating payment method:', error);
-    }
-  };
+      // const response = await fetch(imageUri);
+      // const blob = await response.blob();
+const {data: user, error: e}: any = await supabase.auth.getUser();
+      console.log('Usuário autenticado:', user); // Log para verificar se o usuário está autenticado
+      if (!user) {
+        throw new Error('Usuário não autenticado');
+      }
 
-  // Método para atualizar um PaymentMethod
-  const updatePaymentMethod = async (paymentMethodId) => {
-    try {
-      const response = await axios.post(`http://localhost:3000/update-payment-method/${paymentMethodId}`, {
-        order_id: '6735',
-      });
-      console.log('UPDATE PAYMENT METHOD RESPONSE:', response.data);
-    } catch (error) {
-      console.error('Error updating payment method:', error);
-    }
-  };
+      const imageName = `${user.user.id}/avatar-${Date.now()}`
 
-  const handleOptionChange = (option) => {
-    setSelectedOption(option);
-    // Implemente a lógica para exibir o conteúdo de acordo com a opção selecionada
+      const { data, error } = await supabase.storage
+        .from('images')
+        .upload(imageName, imageUri, {
+          contentType: 'image/jpeg',
+        });
+
+      if (error) {
+        console.error('upload', error)
+        throw error;
+      }
+
+      
+
+      const {data: profileData, error: updateProfileError} = await supabase.from('profiles').update({
+        profile_picture: imageName,
+      }).eq('id', user.user.id);
+
+      console.log({profileData})
+
+      if (updateProfileError) {
+        console.error('updateProfile', updateProfileError)
+        throw updateProfileError;
+      }
+
+      setUserInfo(prevState => ({
+        ...prevState,
+        profile_picture: { uri: user.user.id },
+      }));
+
+      alert('Imagem de perfil atualizada com sucesso!');
+    } catch (error) {
+      console.error('Erro ao fazer upload da imagem de perfil:', error.message);
+      alert('Erro ao fazer upload da imagem de perfil. Por favor, tente novamente mais tarde.');
+    }
   };
 
   return (
-    <View>
-      <View style={styles.container}>
-        <Image
-          source={require('../../../assets/perfil.png')}
-          style={styles.image}
-        />
-        <Text style={styles.text}>Seguidores: 100</Text>
-        <Text style={styles.text}>Seguindo: 50</Text>
-        <Text style={styles.text}>@SeuNome</Text>
-        <Text style={styles.text}>Breve descrição sobre você</Text>
-        <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('PlanSelection')}>
-          <Text style={styles.buttonText}>Escolher Plano</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.button} onPress={openCamera}>
-          <Text style={styles.buttonText}>Câmera</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 20 }}>
-        <TouchableOpacity onPress={() => handleOptionChange('Tudo')} style={{ marginRight: 10 }}>
-          <Text style={{ color: selectedOption === 'Tudo' ? 'blue' : 'black' }}>Tudo</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => handleOptionChange('Fotos')} style={{ marginRight: 10 }}>
-          <Text style={{ color: selectedOption === 'Fotos' ? 'blue' : 'black' }}>Fotos</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => handleOptionChange('Vídeos')}>
-          <Text style={{ color: selectedOption === 'Vídeos' ? 'blue' : 'black' }}>Vídeos</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Restante do seu código */}
+    <View style={styles.container}>
+      <Image
+        source={profileImage ? { uri: profileImage } : userInfo.profile_picture}
+        style={styles.image}
+      />
+      <Text style={styles.text}>Seguidores: 100</Text>
+      <Text style={styles.text}>Seguindo: 50</Text>
+      <Text style={styles.text}>{userInfo.name}</Text>
+      <Text style={styles.text}>{userInfo.bio}</Text>
+      <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('PlanSelection')}>
+        <Text style={styles.buttonText}>Escolher Plano</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.button} onPress={openCamera}>
+        <Text style={styles.buttonText}>Camera</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.button} onPress={openImagePicker}>
+        <Text style={styles.buttonText}>Alterar Imagem de Perfil</Text>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -121,9 +143,6 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: 'white',
-  },
-  contentBox: {
-    // Estilos para a caixa de conteúdo
   },
 });
 
